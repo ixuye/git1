@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN"   
+    "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<!-- sqlMap：映射标签
+	namespace：命名空间
+ -->
+<sqlMap namespace="users">
+
+	<!-- 为类起别名，使用的时候比较方便 -->
+	<typeAlias alias="users" type="com.jk.pojo.UsersInfo"/>
+	<typeAlias alias="roleRequest" type="com.jk.pojo.role.RoleRequest"/>
+	<typeAlias alias="roleResponse" type="com.jk.pojo.role.RoleResponse"/>
+	<typeAlias alias="menuRequest" type="com.jk.pojo.menu.MenuRequest"/>
+	<typeAlias alias="menuResponse" type="com.jk.pojo.menu.MenuResponse"/>
+	<!-- 查询用户总条数 -->
+	<select id="selectUserCount" parameterClass="users" resultClass="int">
+		select count(1) from t_user
+	</select>
+
+	<!-- 查询主页菜单树列表 -->
+	<select id="selectTreeListJson" parameterClass="menuRequest" resultClass="java.util.HashMap">
+		select m3.t_id as "id",
+		       m3.t_name as "text",
+		       m3.t_url as "href",
+		       m3.t_pid as "pid"
+		from t_menus m3
+		right join (
+		            select distinct t_menu_id from t_r_m_mid m1
+		            right join (select t_role_id from t_u_r_mid where t_user_id = #userId#) m2
+		            on m1.t_role_id = m2.t_role_id) m4
+		on m3.t_id = m4.t_menu_id 
+		where m3.t_pid = #pid#
+		and m3.t_type = 0
+		order by m3.t_id
+	</select>
+
+	<!-- 查询用户权限列表 -->
+	<select id="selectUserMenuListJson" parameterClass="menuRequest" resultClass="menuResponse">
+		select distinct m.t_id as "id", 
+	      m.t_name as "name", 
+	      m.t_url as "url", 
+	      m.t_pid as "pid", 
+	      m.t_type as "type", 
+	      nvl2(m1.t_role_id, 1, 0) as "checked",
+	      m.t_parent as "isParent" 
+	    from t_menus m
+	    right join (select m2.t_role_id, m2.t_menu_id from t_r_m_mid m2) m1
+	    on m.t_id = m1.t_menu_id
+	    right join (select t_role_id from t_u_r_mid where t_user_id = #userId#) m3
+	    on m1.t_role_id = m3.t_role_id
+	    order by m.t_id
+	</select>
+
+
+	<!-- 查询用户角色列表 -->
+	<select id="selectUserRoleListJson" parameterClass="roleRequest" resultClass="roleResponse">
+		select r.t_id as "id", 
+			r.t_name as "name", 
+			NVL2(m1.t_role_id, 1, 0) as "checked" 
+		from t_roles r
+		left join (select m.t_role_id from t_u_r_mid m where m.t_user_id = #userId#) m1
+		on r.t_id = m1.t_role_id
+		order by r.t_id
+	</select>
+	
+	<!-- 删除用户所有的角色 -->
+	<delete id="deleteAllRolesByUserID">
+		delete from t_u_r_mid
+		where t_user_id = #userId#
+	</delete>
+	
+	<!-- 添加用户的角色 -->
+	<insert id="insertUserRole">
+	
+		insert into t_u_r_mid
+		(t_id, t_user_id, t_role_id)
+		values
+		(t_u_r_mid_seq.nextval, #userId#, #roleID#)
+	</insert>
+
+	<!-- 添加用户信息 -->
+	<insert id="insertUser" parameterClass="users">
+		<selectKey keyProperty="userId" resultClass="int">
+			select HIBERNATE_SEQUENCE.nextval as "userID" from dual
+		</selectKey>
+		insert into t_user
+		(userid,username,userpwd,userPhoto)
+		values
+		(#userId#,#userName#,#userPassword#,#userPhoto#)
+	</insert>
+	<!-- 修改用户信息 -->
+	<update id="updateUser" parameterClass="users">
+		 update t_user   
+        set username = #userName#,  
+            userpwd=#userPassword#,
+            userphoto=#userPhoto#  
+        where userid=#userId# 
+	</update>
+	<update id="updateUserLoginFailNum" parameterClass="users">
+		 update t_user   
+        set loginfailnum = loginfailnum + 1,
+        loginfaildate = sysdate
+        where username=#userName# 
+	</update>
+	<update id="updateLoginFailNumToZero" parameterClass="users">
+		 update t_user   
+        set loginfailnum = 0  
+        where username=#userName# 
+	</update>
+	
+	<!-- 查询用户列表 程攀 你说的白不是白，你说的黑不是黑。哈哈！！！！-->
+	<select id="selectUserList" parameterClass="users" resultClass="users">
+		select u2.* from (
+			select u1.*, rownum as rm from (
+				select u.userid as "userId",u.username as "userName",
+				u.userpwd as "userPassword",b.t_url as "fileUrl" from t_user u left join (
+        select a.t_user_id,f.t_url from t_u_f_mid a left join t_fingerprint f on a.t_fingerprint=f.t_id)
+        b on u.userid=b.t_user_id
+			) u1
+			where rownum <![CDATA[<=]]> #endPos#
+		) u2
+		where u2.rm >= #startPos#
+	</select>
+	
+	<!-- 根据用户名查询 -->
+	<select id="selectUserByUserName" resultClass="users" parameterClass="java.lang.String">
+		select userid as userId, 
+			username as userName,
+			userpwd as userPassword,
+			loginfailnum as loginFailNum,
+			(sysdate - loginfaildate) * 24 * 60 * 60 * 1000 as loginFailDate
+		from t_user where username=#userName#
+	</select>
+	
+	<!-- 根据id查询 -->
+	<select id="selectUserByUserId" parameterClass="int" resultClass="users">  
+		select userid as userId, 
+			username as userName,
+			userpwd as userPassword,
+			userphoto as userPhoto 
+		from t_user where userid=#userId#
+	</select>
+	<!-- <update id="deleteUser" parameterClass="java.lang.String">
+		delete from he_user where userID in ($userID$)
+	</update> -->
+	
+	<!-- 根据id删除 -->
+	<delete id="deleteUserByUserId" parameterClass="int">
+		delete from t_user 
+		 where userid=#userId#
+	</delete>
+	<!-- 根据id删除 -->
+	<delete id="deleteUserByUserIds" parameterClass="java.lang.String">
+		delete from t_user 
+		 where userid in ($userId$)
+	</delete>
+	
+	 <!-- <select id="searchUsers" resultClass="User" parameterClass="User">    
+        select * from t_user    
+        <dynamic prepend="where">    
+            模糊查询，用$表示文本替换，而用#表示替换PrepareStatement中的?号    
+            <isNotEmpty prepend="and" property="username">    
+                (username like '%$username$%')    
+            </isNotEmpty>    
+            <isNotEmpty prepend="and" property="password">    
+                (password like '%$password$%')    
+            </isNotEmpty>    
+        </dynamic>    
+    </select> -->
+	
+</sqlMap>

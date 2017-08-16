@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN"   
+    "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<!-- sqlMap：映射标签
+	namespace：命名空间
+ -->
+<sqlMap namespace="fingerprint">
+
+	<!-- 为类起别名，使用的时候比较方便 -->
+	<typeAlias alias="users" type="com.jk.pojo.UsersInfo"/>
+	<typeAlias alias="fingerprintRequest" type="com.jk.pojo.fingerprint.FingerprintRequest"/>
+	<typeAlias alias="fingerprintResponse" type="com.jk.pojo.fingerprint.FingerprintResponse"/>
+
+	<!-- <resultMap id="baseResultmap" type="com.jk.pojo.Tree">
+		<association property="treeCount" select="selectTreeListCount" javaType="java.lang.Integer"></association>
+	
+	</resultMap> -->
+	
+	<!-- 添加文件指纹信息 -->
+	<insert id="insertFingerprint" parameterClass="fingerprintRequest">
+	    <selectKey keyProperty="fid" resultClass="Integer">
+			select t_fingerprint_seq.nextval as "fid" from dual
+		</selectKey>
+		insert into t_fingerprint
+		(t_id,t_fingerprint,t_url)
+		values
+		(#fid#,#fileFingerprint#,#fileUrl#)
+	</insert>
+	<!-- 添加用户-文件指纹中间表信息 -->
+	<insert id="insertUserFileFingerprint" parameterClass="fingerprintRequest">
+		insert into t_u_f_mid
+		(t_id,t_user_id,t_fingerprint)
+		values
+		(t_u_f_seq.nextval,#userID#,#fid#)
+	</insert>
+	
+	<select id="queryFingerPrintByMd5" parameterClass="java.lang.String" resultClass="fingerprintResponse">
+		select 
+		t_id as "fid",
+		t_fingerprint as "fileFingerprint",
+		t_url as "fileUrl"
+		from t_fingerprint
+		where t_fingerprint = #fileFingerprint#
+	
+	</select>
+	
+	
+	
+</sqlMap>

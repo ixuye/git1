@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+
+<!DOCTYPE sqlMap PUBLIC "-//ibatis.apache.org//DTD SQL Map 2.0//EN"   
+    "http://ibatis.apache.org/dtd/sql-map-2.dtd">
+<!-- sqlMap：映射标签
+	namespace：命名空间
+ -->
+<sqlMap namespace="tree">
+
+	<!-- 为类起别名，使用的时候比较方便 -->
+	<typeAlias alias="tree" type="com.jk.pojo.Tree"/>
+
+	<!-- <resultMap id="baseResultmap" type="com.jk.pojo.Tree">
+		<association property="treeCount" select="selectTreeListCount" javaType="java.lang.Integer"></association>
+	
+	</resultMap> -->
+	
+	<!-- 查询书籍列表 -->
+	<select id="selectTreeList" resultClass="tree">
+		select treeId as "id", 
+			treeName as "text",
+			parentId as "treeParentId",
+			url as "url"
+		from t_tree
+	</select>
+	
+	<select id="selectTreeListByParentId" resultClass="tree">
+		select treeId as "id", 
+			treeName as "text",
+			parentId as "treeParentId",
+			url as "url"
+		from t_tree where parentId = #treeParentId#
+	</select>
+	<select id="selectTreeListCount" resultClass="tree">
+		select treeId as "id", 
+			treeName as "text",
+			parentId as "treeParentId",
+			url as "url"
+		from t_tree where parentId = #id#
+	</select>
+	<select id="selectByTreeIdCount" resultClass="tree">
+		select treeId as "id", 
+			treeName as "text",
+			parentId as "treeParentId",
+			url as "url"
+		from t_tree where parentId = #id#
+	</select>
+	
+</sqlMap>
